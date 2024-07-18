@@ -17,6 +17,8 @@ PostgreSQL implementation of IPython ContentsManager API.
 """
 from __future__ import unicode_literals
 from itertools import chain
+
+from sqlalchemy.orm import Session
 from tornado import web
 
 from .api_utils import (
@@ -331,13 +333,14 @@ class PostgresContentsManager(PostgresManagerMixin, ContentsManager):
         if model['type'] not in ('file', 'directory', 'notebook'):
             self.do_400("Unhandled contents type: %s" % model['type'])
         try:
-            with self.engine.begin() as db:
+            session = Session(self.engine)
+            with session.begin():
                 if model['type'] == 'notebook':
-                    validation_message = self._save_notebook(db, model, path)
+                    validation_message = self._save_notebook(session, model, path)
                 elif model['type'] == 'file':
-                    validation_message = self._save_file(db, model, path)
+                    validation_message = self._save_file(session, model, path)
                 else:
-                    validation_message = self._save_directory(db, path)
+                    validation_message = self._save_directory(session, path)
         except (web.HTTPError, PathOutsideRoot):
             raise
         except FileTooLarge:

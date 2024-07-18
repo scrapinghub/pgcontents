@@ -3,7 +3,7 @@ Utilities for managing IPython 3/4 compat.
 """
 import IPython
 
-SUPPORTED_VERSIONS = {3, 4, 5}
+SUPPORTED_VERSIONS = {3, 4, 5, 6, 7, 8}
 IPY_MAJOR = IPython.version_info[0]
 if IPY_MAJOR not in SUPPORTED_VERSIONS:
     raise ImportError("IPython version %d is not supported." % IPY_MAJOR)

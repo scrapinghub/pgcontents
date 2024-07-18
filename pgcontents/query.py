@@ -298,6 +298,7 @@ def _file_default_fields():
         files.c.name,
         files.c.created_at,
         files.c.parent_name,
+        files.c.user_id,
     ]
 
 
@@ -472,32 +473,32 @@ def save_file(db, user_id, path, content, max_size_bytes):
     """
     check_content(content, max_size_bytes)
     directory, name = split_api_filepath(path)
-    with db.begin_nested() as savepoint:
-        try:
+    savepoint = db.begin_nested()
+    try:
+        res = db.execute(
+            files.insert().values(
+                name=name,
+                user_id=user_id,
+                parent_name=directory,
+                content=content,
+            )
+        )
+    except IntegrityError as error:
+        # The file already exists, so overwrite its content with the newer
+        # version.
+        if is_unique_violation(error):
+            savepoint.rollback()
             res = db.execute(
-                files.insert().values(
-                    name=name,
-                    user_id=user_id,
-                    parent_name=directory,
+                files.update().where(
+                    _file_where(user_id, path),
+                ).values(
                     content=content,
+                    created_at=func.now(),
                 )
             )
-        except IntegrityError as error:
-            # The file already exists, so overwrite its content with the newer
-            # version.
-            if is_unique_violation(error):
-                savepoint.rollback()
-                res = db.execute(
-                    files.update().where(
-                        _file_where(user_id, path),
-                    ).values(
-                        content=content,
-                        created_at=func.now(),
-                    )
-                )
-            else:
-                # Unknown error.  Reraise
-                raise
+        else:
+            # Unknown error.  Reraise
+            raise
 
     return res
 
